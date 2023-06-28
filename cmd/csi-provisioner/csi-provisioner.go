@@ -89,6 +89,7 @@ var (
 	strictTopology          = flag.Bool("strict-topology", false, "Late binding: pass only selected node topology to CreateVolume Request, unlike default behavior of passing aggregated cluster topologies that match with topology keys of the selected node.")
 	immediateTopology       = flag.Bool("immediate-topology", true, "Immediate binding: pass aggregated cluster topologies for all nodes where the CSI driver is available (enabled, the default) or no topology requirements (if disabled).")
 	extraCreateMetadata     = flag.Bool("extra-create-metadata", false, "If set, add pv/pvc metadata to plugin create requests as parameters.")
+	extraCreateLabels       = flag.String("extra-create-labels", "", "If set, add pvc labels to plugin create requests as parameters.")
 	metricsAddress          = flag.String("metrics-address", "", "(deprecated) The TCP network address where the prometheus metrics endpoint will listen (example: `:8080`). The default is empty string, which means metrics endpoint is disabled. Only one of `--metrics-address` and `--http-endpoint` can be set.")
 	httpEndpoint            = flag.String("http-endpoint", "", "The TCP network address where the HTTP server for diagnostics, including pprof, metrics and leader election health check, will listen (example: `:8080`). The default is empty string, which means the server is disabled. Only one of `--metrics-address` and `--http-endpoint` can be set.")
 	metricsPath             = flag.String("metrics-path", "/metrics", "The HTTP path where prometheus metrics will be exposed. Default is `/metrics`.")
@@ -402,33 +403,7 @@ func main() {
 
 	// Create the provisioner: it implements the Provisioner interface expected by
 	// the controller
-	csiProvisioner := ctrl.NewCSIProvisioner(
-		clientset,
-		*operationTimeout,
-		identity,
-		*volumeNamePrefix,
-		*volumeNameUUIDLength,
-		grpcClient,
-		snapClient,
-		provisionerName,
-		pluginCapabilities,
-		controllerCapabilities,
-		supportsMigrationFromInTreePluginName,
-		*strictTopology,
-		*immediateTopology,
-		translator,
-		scLister,
-		csiNodeLister,
-		nodeLister,
-		claimLister,
-		vaLister,
-		referenceGrantLister,
-		*extraCreateMetadata,
-		*defaultFSType,
-		nodeDeployment,
-		*controllerPublishReadOnly,
-		*preventVolumeModeConversion,
-	)
+	csiProvisioner := ctrl.NewCSIProvisioner(clientset, *operationTimeout, identity, *volumeNamePrefix, *volumeNameUUIDLength, grpcClient, snapClient, provisionerName, pluginCapabilities, controllerCapabilities, supportsMigrationFromInTreePluginName, *strictTopology, *immediateTopology, translator, scLister, csiNodeLister, nodeLister, claimLister, vaLister, referenceGrantLister, *extraCreateMetadata, strings.Split(*extraCreateLabels, ","), *defaultFSType, nodeDeployment, *controllerPublishReadOnly, *preventVolumeModeConversion)
 
 	var capacityController *capacity.Controller
 	if *enableCapacity {

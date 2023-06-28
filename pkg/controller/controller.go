@@ -116,8 +116,9 @@ const (
 	nodePublishSecretNamespaceKey = "csiNodePublishSecretNamespace"
 
 	// PV and PVC metadata, used for sending to drivers in the  create requests, added as parameters, optional.
-	pvcNameKey      = "csi.storage.k8s.io/pvc/name"
-	pvcNamespaceKey = "csi.storage.k8s.io/pvc/namespace"
+	pvcPrefix       = "csi.storage.k8s.io/pvc/"
+	pvcNameKey      = pvcPrefix + "name"
+	pvcNamespaceKey = pvcPrefix + "namespace"
 	pvNameKey       = "csi.storage.k8s.io/pv/name"
 
 	snapshotKind     = "VolumeSnapshot"
@@ -271,6 +272,7 @@ type csiProvisioner struct {
 	vaLister                              storagelistersv1.VolumeAttachmentLister
 	referenceGrantLister                  referenceGrantv1beta1.ReferenceGrantLister
 	extraCreateMetadata                   bool
+	extraCreateLabels                     []string
 	eventRecorder                         record.EventRecorder
 	nodeDeployment                        *internalNodeDeployment
 	controllerPublishReadOnly             bool
@@ -331,32 +333,7 @@ func GetNodeInfo(conn *grpc.ClientConn, timeout time.Duration) (*csi.NodeGetInfo
 //
 // vaLister is optional and only needed when VolumeAttachments are
 // meant to be checked before deleting a volume.
-func NewCSIProvisioner(client kubernetes.Interface,
-	connectionTimeout time.Duration,
-	identity string,
-	volumeNamePrefix string,
-	volumeNameUUIDLength int,
-	grpcClient *grpc.ClientConn,
-	snapshotClient snapclientset.Interface,
-	driverName string,
-	pluginCapabilities rpc.PluginCapabilitySet,
-	controllerCapabilities rpc.ControllerCapabilitySet,
-	supportsMigrationFromInTreePluginName string,
-	strictTopology bool,
-	immediateTopology bool,
-	translator ProvisionerCSITranslator,
-	scLister storagelistersv1.StorageClassLister,
-	csiNodeLister storagelistersv1.CSINodeLister,
-	nodeLister corelisters.NodeLister,
-	claimLister corelisters.PersistentVolumeClaimLister,
-	vaLister storagelistersv1.VolumeAttachmentLister,
-	referenceGrantLister referenceGrantv1beta1.ReferenceGrantLister,
-	extraCreateMetadata bool,
-	defaultFSType string,
-	nodeDeployment *NodeDeployment,
-	controllerPublishReadOnly bool,
-	preventVolumeModeConversion bool,
-) controller.Provisioner {
+func NewCSIProvisioner(client kubernetes.Interface, connectionTimeout time.Duration, identity string, volumeNamePrefix string, volumeNameUUIDLength int, grpcClient *grpc.ClientConn, snapshotClient snapclientset.Interface, driverName string, pluginCapabilities rpc.PluginCapabilitySet, controllerCapabilities rpc.ControllerCapabilitySet, supportsMigrationFromInTreePluginName string, strictTopology bool, immediateTopology bool, translator ProvisionerCSITranslator, scLister storagelistersv1.StorageClassLister, csiNodeLister storagelistersv1.CSINodeLister, nodeLister corelisters.NodeLister, claimLister corelisters.PersistentVolumeClaimLister, vaLister storagelistersv1.VolumeAttachmentLister, referenceGrantLister referenceGrantv1beta1.ReferenceGrantLister, extraCreateMetadata bool, extraCreateLabels []string, defaultFSType string, nodeDeployment *NodeDeployment, controllerPublishReadOnly bool, preventVolumeModeConversion bool) controller.Provisioner {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartLogging(klog.Infof)
 	broadcaster.StartRecordingToSink(&corev1.EventSinkImpl{Interface: client.CoreV1().Events(v1.NamespaceAll)})
@@ -388,6 +365,7 @@ func NewCSIProvisioner(client kubernetes.Interface,
 		vaLister:                              vaLister,
 		referenceGrantLister:                  referenceGrantLister,
 		extraCreateMetadata:                   extraCreateMetadata,
+		extraCreateLabels:                     extraCreateLabels,
 		eventRecorder:                         eventRecorder,
 		controllerPublishReadOnly:             controllerPublishReadOnly,
 		preventVolumeModeConversion:           preventVolumeModeConversion,
@@ -735,6 +713,13 @@ func (p *csiProvisioner) prepareProvision(ctx context.Context, claim *v1.Persist
 		req.Parameters[pvcNamespaceKey] = claim.GetNamespace()
 		req.Parameters[pvNameKey] = pvName
 	}
+
+	for _, k := range p.extraCreateLabels {
+		if v, ok := claim.GetLabels()[k]; ok {
+			req.Parameters[pvcPrefix+k] = v
+		}
+	}
+
 	deletionAnnSecrets := new(deletionSecretParams)
 
 	if provisionerSecretRef != nil {

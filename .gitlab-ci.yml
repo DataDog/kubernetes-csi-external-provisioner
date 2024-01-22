@@ -11,3 +11,10 @@ build-docker-image:
   variables:
     IMAGE_NAME: csi-provisioner
   extends: .build-docker-image
+
+run-campaign-aws:
+  variables:
+    CHART_NAME: k8s-platform-aws-ebs-csi-driver
+    COMPONENT: provisioner
+    SLACK_CHANNEL: compute-storage-ops
+  extends: .run-campaign

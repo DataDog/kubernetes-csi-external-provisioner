@@ -1,8 +1,9 @@
 ARG BASE_IMAGE
 
-FROM golang:1.20 as builder
+FROM registry.ddbuild.io/images/mirror/golang:1.22 as builder
 WORKDIR /go/src/kubernetes-csi/external-provisioner
 ADD . .
+ENV GOTOOLCHAIN auto
 ENV GOFLAGS="-buildvcs=false"
 RUN make build
 

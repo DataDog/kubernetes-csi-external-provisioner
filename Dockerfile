@@ -4,7 +4,6 @@ FROM registry.ddbuild.io/images/mirror/golang:1.22 as builder
 WORKDIR /go/src/kubernetes-csi/external-provisioner
 ADD . .
 ENV GOTOOLCHAIN auto
-ENV GOFLAGS="-buildvcs=false"
 RUN make build
 
 FROM $BASE_IMAGE

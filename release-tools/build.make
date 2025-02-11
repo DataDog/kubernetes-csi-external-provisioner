@@ -79,7 +79,7 @@ BUILD_PLATFORMS =
 
 # Add go ldflags using LDFLAGS at the time of compilation.
 IMPORTPATH_LDFLAGS = -X main.version=$(REV)
-EXT_LDFLAGS = -extldflags "-static"
+EXT_LDFLAGS =
 LDFLAGS =
 FULL_LDFLAGS = $(LDFLAGS) $(IMPORTPATH_LDFLAGS) $(EXT_LDFLAGS)
 # This builds each command (= the sub-directories of ./cmd) for the target platform(s)
@@ -95,7 +95,7 @@ $(CMDS:%=build-%): build-%: check-go-version-go
 		if ! [ $${#os_arch_seen_pre} = $${#os_arch_seen} ]; then \
 			continue; \
 		fi; \
-		if ! (set -x; cd ./$(CMDS_DIR)/$* && CGO_ENABLED=0 GOOS="$$os" GOARCH="$$arch" go build $(GOFLAGS_VENDOR) -a -ldflags '$(FULL_LDFLAGS)' -o "$(abspath ./bin)/$*$$suffix" .); then \
+		if ! (set -x; cd ./$(CMDS_DIR)/$* && CGO_ENABLED=1 GOEXPERIMENT=boringcrypto GOOS="$$os" GOARCH="$$arch" go build $(GOFLAGS_VENDOR) -a -ldflags '$(FULL_LDFLAGS)' -tags fips -o "$(abspath ./bin)/$*$$suffix" . && go tool nm "$(abspath ./bin)/$*$$suffix" | grep 'sig\.FIPSOnly'); then \
 			echo "Building $* for GOOS=$$os GOARCH=$$arch failed, see error(s) above."; \
 			exit 1; \
 		fi; \

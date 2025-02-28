@@ -564,6 +564,12 @@ func createFakePVCWithVAC(requestBytes int64, vacName string) *v1.PersistentVolu
 	return claim
 }
 
+// createFakePVCWithVAC returns PVC with Annotations
+func createFakePVCWithAnnotations(requestBytes int64, annotations map[string]string) *v1.PersistentVolumeClaim {
+	claim := createFakeNamedPVC(requestBytes, "fake-pvc", annotations)
+	return claim
+}
+
 // fakeClaim returns a valid PVC with the requested settings
 func fakeClaim(name, namespace, claimUID string, capacity int64, boundToVolume string, phase v1.PersistentVolumeClaimPhase, class *string, mode string) *v1.PersistentVolumeClaim {
 	claim := v1.PersistentVolumeClaim{
@@ -2373,6 +2379,45 @@ func provisionTestcases() (int64, map[string]provisioningTestcase) {
 					},
 				},
 				VolumeAttributesClassName: &vacName,
+			},
+			expectState: controller.ProvisioningFinished,
+		},
+		"normal provision with custom params in annotations": {
+			pluginCapabilities: provisionWithVACCapabilities,
+			expectCreateVolDo: func(t *testing.T, ctx context.Context, req *csi.CreateVolumeRequest) {
+				if !reflect.DeepEqual(req.MutableParameters, map[string]string{"iops": "10000"}) {
+					t.Errorf("Missing or incorrect mutable parameters")
+				}
+			},
+			volOpts: controller.ProvisionOptions{
+				StorageClass: &storagev1.StorageClass{
+					ReclaimPolicy: &deletePolicy,
+					Parameters: map[string]string{
+						"fstype":     "ext3",
+						"test-param": "from-sc",
+					},
+				},
+				PVName: "test-name",
+				PVC:    createFakePVCWithAnnotations(requestedBytes, map[string]string{driverName + "/iops": "10000"}),
+			},
+			expectedPVSpec: &pvSpec{
+				Name: "test-testi",
+				Annotations: map[string]string{
+					annDeletionProvisionerSecretRefName:      "",
+					annDeletionProvisionerSecretRefNamespace: "",
+				},
+				ReclaimPolicy: v1.PersistentVolumeReclaimDelete,
+				Capacity: v1.ResourceList{
+					v1.ResourceName(v1.ResourceStorage): bytesToQuantity(requestedBytes),
+				},
+				CSIPVS: &v1.CSIPersistentVolumeSource{
+					Driver:       "test-driver",
+					VolumeHandle: "test-volume-id",
+					FSType:       "ext3",
+					VolumeAttributes: map[string]string{
+						"storage.kubernetes.io/csiProvisionerIdentity": "test-provisioner",
+					},
+				},
 			},
 			expectState: controller.ProvisioningFinished,
 		},

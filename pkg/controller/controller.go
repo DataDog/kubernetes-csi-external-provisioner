@@ -913,12 +913,21 @@ func (p *csiProvisioner) Provision(ctx context.Context, options controller.Provi
 		pvReadOnly = true
 	}
 
+	// Add mutable parameters as annotations if any. This indicated volume modifier the volume is already modified.
+	annotations := map[string]string{}
+	for k, v := range options.PVC.Annotations {
+		if strings.HasPrefix(k, p.driverName+"/") {
+			annotations[k] = v
+		}
+	}
+
 	result.csiPVSource.VolumeHandle = p.volumeIdToHandle(rep.Volume.VolumeId)
 	result.csiPVSource.VolumeAttributes = volumeAttributes
 	result.csiPVSource.ReadOnly = pvReadOnly
 	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: pvName,
+			Name:        pvName,
+			Annotations: annotations,
 		},
 		Spec: v1.PersistentVolumeSpec{
 			AccessModes:  options.PVC.Spec.AccessModes,

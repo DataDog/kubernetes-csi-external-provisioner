@@ -2405,6 +2405,7 @@ func provisionTestcases() (int64, map[string]provisioningTestcase) {
 				Annotations: map[string]string{
 					annDeletionProvisionerSecretRefName:      "",
 					annDeletionProvisionerSecretRefNamespace: "",
+					driverName + "/iops":                     "10000",
 				},
 				ReclaimPolicy: v1.PersistentVolumeReclaimDelete,
 				Capacity: v1.ResourceList{

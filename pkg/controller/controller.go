@@ -615,7 +615,15 @@ func (p *csiProvisioner) prepareProvision(ctx context.Context, claim *v1.Persist
 		}
 	}
 
-	if vacName != "" {
+	// Get mutable parameters from claim annotations
+	mutableParameters := make(map[string]string)
+	for k, v := range claim.Annotations {
+		if param, ok := strings.CutPrefix(k, p.driverName+"/"); ok {
+			mutableParameters[param] = v
+		}
+	}
+
+	if vacName != "" || len(mutableParameters) > 0 {
 		rc.modifyVolume = true
 	}
 
@@ -666,6 +674,7 @@ func (p *csiProvisioner) prepareProvision(ctx context.Context, claim *v1.Persist
 		CapacityRange: &csi.CapacityRange{
 			RequiredBytes: int64(volSizeBytes),
 		},
+		MutableParameters: mutableParameters,
 	}
 
 	if dataSource != nil && (rc.clone || rc.snapshot) {
@@ -770,6 +779,7 @@ func (p *csiProvisioner) prepareProvision(ctx context.Context, claim *v1.Persist
 			return nil, controller.ProvisioningFinished, fmt.Errorf("VAC %s referenced in PVC is for driver %s which does not match driver name %s", vacName, vac.DriverName, p.driverName)
 		}
 
+		// Override any mutable parameters set through annotation on the claim
 		req.MutableParameters = vac.Parameters
 	}
 
